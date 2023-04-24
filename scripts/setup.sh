@@ -2,6 +2,16 @@
 option=${1:-empty}
 dokku='docker exec -it dokku dokku'
 
+is_container_healthy() {
+    local state=$(docker inspect -f '{{ .State.Health.Status }}' dokku)
+
+    if [ "$state" = "healthy" ]; then
+        return 1
+    else
+        return 0
+    fi
+}
+
 setup_dokku() {
     echo "Setting up dokku...\n"
 
@@ -20,17 +30,14 @@ setup_mongo() {
 setup_app() {
     echo "Setting up app...\n"
 
-    app="web"
+    local app="web"
 
     $dokku apps:create $app
     $dokku mongo:link default web
-    $dokku config:set --no-restart $app SERVICE_PORT=8080
 
     $dokku nginx:stop
     $dokku caddy:start
 
-    $dokku proxy:clear-config --all
-    $dokku proxy:build-config --all
     $dokku proxy:set $app caddy
     $dokku proxy:ports-clear $app
     $dokku proxy:ports-add $app http:80:80
@@ -38,7 +45,17 @@ setup_app() {
     $dokku domains:enable $app
     $dokku domains:clear $app
     $dokku domains:add $app node.dokku.me
+
+    $dokku proxy:build-config web
+
 }
+
+is_container_healthy
+
+if [ $? -ne 1 ]; then
+    echo "The Dokku container is not ready..."
+    exit 1
+fi
 
 case $option in
 dokku)

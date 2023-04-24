@@ -6,18 +6,28 @@ services:
   dokku:
     image: dokku/dokku:0.30.2
     container_name: dokku
+    networks:
+      - dokku
     ports:
       - 9022:22
     volumes:
       - dokku:/mnt/dokku
-      - dokku-lib:/var/lib/dokku/ 
       - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 22"]
+      interval: 10s
+      timeout: 30s
+      retries: 10
+      start_period: 10s
     environment:
       DOKKU_HOSTNAME: dokku.me
-      DOKKU_HOST_ROOT: /var/lib/dokku/home/dokku 
-      DOKKU_LIB_HOST_ROOT: /var/lib/dokku
+      DOKKU_HOST_ROOT: /var/lib/dokku/home/dokku
+      DOKKU_LIB_HOST_ROOT: /var/lib/dokku/var/lib/dokku
 
 volumes:
-  dokku-lib:
   dokku:
     name: "dokku"
+
+networks:
+  dokku:
+    driver: bridge
